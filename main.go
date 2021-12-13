@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/jessevdk/go-flags"
@@ -28,17 +30,29 @@ func fileInfoFromInterface(v os.FileInfo) *FileInfo {
 
 // Node represents a node in a directory tree.
 type Node struct {
-	FullPath   string    `json:"path"`
-	Name       string    `json:"name"`
-	Size       int       `json:"size"`
-	Children   []*Node   `json:"children"`
-	ParentName string    `json:"parent"`
+	Name       string    `json:"name,omitempty"`
+	Size       int       `json:"value,omitempty"`
+	FullPath   string    `json:"-"`
+	Color      string    `json:"-"`
+	Children   []*Node   `json:"children,omitempty"`
+	ParentName string    `json:"-"`
 	Info       *FileInfo `json:"-"`
 	Parent     *Node     `json:"-"`
 }
 
+func isExcluded(name string) bool {
+	exclusions := []string{".git", "build/", "bin/", "gradle/", "libs/", ".gradle/", "buildSrc/", ".ci/"}
+	for _, ex := range exclusions {
+		if strings.HasPrefix(name, ex) {
+			return true
+		}
+	}
+	return false
+}
+
 // Create directory hierarchy.
 func NewTree(root string) (result *Node, err error) {
+
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
 		return
@@ -46,10 +60,10 @@ func NewTree(root string) (result *Node, err error) {
 
 	parents := make(map[string]*Node)
 	walkFunc := func(path string, info os.FileInfo, err error) error {
+
 		if err != nil {
 			return err
 		}
-		// if !isExcluded(info.Name(), excusions) {
 		inf := fileInfoFromInterface(info)
 		parents[path] = &Node{
 			FullPath: path,
@@ -57,12 +71,14 @@ func NewTree(root string) (result *Node, err error) {
 			Info:     inf,
 			Children: make([]*Node, 0),
 		}
-		// }
+
 		return nil
 	}
+
 	if err = filepath.Walk(absRoot, walkFunc); err != nil {
 		return
 	}
+
 	for path, node := range parents {
 		parentPath := filepath.Dir(path)
 		parent, exists := parents[parentPath]
@@ -70,16 +86,31 @@ func NewTree(root string) (result *Node, err error) {
 		if !exists { // If a parent does not exist, this is the root.
 			result = node
 		} else {
-			node.Parent = parent
-			node.ParentName = parent.Name
-			parent.Children = append(parent.Children, node)
-
+			// node.Parent = parent
+			
 			if !node.Info.IsDir {
 				node.Size = int(node.Info.Size)
 			}
+
+			if node.Name == ".git" {
+				fmt.Println(path)
+				continue
+			}
+			parent.Children = append(parent.Children, node)
 		}
 	}
+
 	return
+}
+
+func colorTree(node *Node, intensity int) {
+	intensity += 1
+	node.Color = fmt.Sprint("hsl(0, 0%, ", intensity, "%)")
+
+	for _, node := range node.Children {
+		colorTree(node, intensity)
+
+	}
 }
 
 type Options struct {
@@ -104,6 +135,8 @@ func main() {
 
 	tree, err := NewTree(opts.Repository)
 	handleError(err)
+
+	colorTree(tree, 60)
 
 	dat, err := json.Marshal(tree)
 	handleError(err)
