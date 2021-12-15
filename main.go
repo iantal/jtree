@@ -32,8 +32,8 @@ func fileInfoFromInterface(v os.FileInfo) *FileInfo {
 type Node struct {
 	Name       string    `json:"name,omitempty"`
 	Size       int       `json:"value,omitempty"`
-	FullPath   string    `json:"-"`
-	Color      string    `json:"-"`
+	FullPath   string    `json:"path"`
+	Color      string    `json:"color"`
 	Children   []*Node   `json:"children,omitempty"`
 	ParentName string    `json:"-"`
 	Info       *FileInfo `json:"-"`
@@ -104,8 +104,8 @@ func NewTree(root string) (result *Node, err error) {
 }
 
 func colorTree(node *Node, intensity int) {
-	intensity += 1
-	node.Color = fmt.Sprint("hsl(0, 0%, ", intensity, "%)")
+	intensity += 4
+	node.Color = fmt.Sprint("hsl(0, 0%, ", 100 - intensity, "%)")
 
 	for _, node := range node.Children {
 		colorTree(node, intensity)
@@ -136,7 +136,7 @@ func main() {
 	tree, err := NewTree(opts.Repository)
 	handleError(err)
 
-	colorTree(tree, 60)
+	colorTree(tree, 0)
 
 	dat, err := json.Marshal(tree)
 	handleError(err)
