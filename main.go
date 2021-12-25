@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/jessevdk/go-flags"
@@ -29,6 +28,18 @@ func fileInfoFromInterface(v os.FileInfo) *FileInfo {
 }
 
 // Node represents a node in a directory tree.
+// type Node struct {
+// 	Name       string    `json:"name"`
+// 	Size       int       `json:"size"`
+// 	FullPath   string    `json:"path"`
+// 	Color      string    `json:"-"`
+// 	Children   []*Node   `json:"children,omitempty"`
+// 	ParentName string    `json:"parent"`
+// 	Info       *FileInfo `json:"-"`
+// 	Parent     *Node     `json:"-"`
+// }
+
+
 type Node struct {
 	Name       string    `json:"name,omitempty"`
 	Size       int       `json:"value,omitempty"`
@@ -40,10 +51,11 @@ type Node struct {
 	Parent     *Node     `json:"-"`
 }
 
+
 func isExcluded(name string) bool {
-	exclusions := []string{".git", "build/", "bin/", "gradle/", "libs/", ".gradle/", "buildSrc/", ".ci/"}
+	exclusions := []string{".git", "build", "bin", "gradle", "libs", ".gradle", "buildSrc", ".ci", ".github"}
 	for _, ex := range exclusions {
-		if strings.HasPrefix(name, ex) {
+		if name == ex {
 			return true
 		}
 	}
@@ -86,14 +98,14 @@ func NewTree(root string) (result *Node, err error) {
 		if !exists { // If a parent does not exist, this is the root.
 			result = node
 		} else {
-			// node.Parent = parent
-			
+			node.Parent = parent
+			node.ParentName = parent.FullPath
+
 			if !node.Info.IsDir {
 				node.Size = int(node.Info.Size)
 			}
 
-			if node.Name == ".git" {
-				fmt.Println(path)
+			if isExcluded(node.Name) {
 				continue
 			}
 			parent.Children = append(parent.Children, node)
@@ -104,8 +116,8 @@ func NewTree(root string) (result *Node, err error) {
 }
 
 func colorTree(node *Node, intensity int) {
-	intensity += 4
-	node.Color = fmt.Sprint("hsl(0, 0%, ", 100 - intensity, "%)")
+	intensity += 2
+	node.Color = fmt.Sprint("hsl(0, 0%, ", 102-intensity, "%)")
 
 	for _, node := range node.Children {
 		colorTree(node, intensity)
